@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      Int                @id @default(autoincrement())
+  email                   String             @unique(map: "users_email_unique")
+  name                    String?
+  avatarColor             String?            @map("avatar_color")
+  bio                     String?
+  createdAt               DateTime           @default(now()) @map("createdAt") @db.Timestamp(6)
+  updatedAt               DateTime           @default(now()) @map("updatedAt") @db.Timestamp(6)
+  activities              Activity[]
+  createdClaims           Claim[]
+  createdClaimStatuses    ClaimStatus[]
+  createdCustomers        Customer[]
+  createdDealerships      Dealership[]
+  createdMedia            Media[]
+  createdNotes            Note[]
+  createdParts            Part[]
+  createdPermissions      Permission[]
+  createdRepairCosts      RepairCost[]
+  createdRepairers        Repairer[]
+  sessions                Session[]
+  userPermissions         UserPermission[]
+  createdVehicles         Vehicle[]
+  verificationCodes       VerificationCode[]
+  createdWarranties       Warranty[]
+  createdWarrantyStatuses WarrantyStatus[]
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique(map: "sessions_session_token_unique") @map("session_token")
+  userId       Int      @map("userId")
+  expires      DateTime @db.Timestamp(6)
+  createdAt    DateTime @default(now()) @map("createdAt") @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @map("updatedAt") @db.Timestamp(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_userId_usersId_fk")
+
+  @@index([userId])
+}
+
+model VerificationCode {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String
+  email     String
+  userId    Int      @map("user_id")
+  expires   DateTime @db.Timestamp(6)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "verification_codes_user_id_users_id_fk")
+
+  @@unique([email, code], map: "verification_codes_email_code_idx")
+  @@index([email])
+  @@index([userId])
+}
+
+model UserPermission {
+  id           Int        @id @default(autoincrement())
+  userId       Int        @map("user_id")
+  permissionId String     @map("permission_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permissions_permission_id_permissions_id_fk")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permissions_user_id_users_id_fk")
+
+  @@unique([userId, permissionId], map: "user_permission_idx")
+}
+
+model Permission {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String           @unique(map: "permissions_code_unique")
+  description     String
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime         @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdById     Int              @map("created_by_id")
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  userPermissions UserPermission[]
+
+  @@index([createdById])
+}
+
+model Activity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      Int      @map("user_id")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  action      String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Customer {
+  id          Int        @id @default(autoincrement())
+  title       String
+  firstName   String     @map("first_name")
+  lastName    String     @map("last_name")
+  houseNumber String     @map("house_number")
+  street      String
+  town        String
+  postcode    String
+  phone       String?
+  mobile      String?
+  email       String
+  createdById Int        @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+  claims      Claim[]
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  warranties  Warranty[]
+}
+
+model Warranty {
+  id                       Int            @id @default(autoincrement())
+  customerId               Int            @map("customer_id")
+  statusId                 Int            @map("status_id")
+  warrantyId               String         @map("warranty_id")
+  warrantyStartDate        DateTime       @map("warranty_start_date") @db.Date
+  warrantyExpiryDate       DateTime       @map("warranty_expiry_date") @db.Date
+  warrantyRegistrationDate DateTime       @map("warranty_registration_date") @db.Date
+  plan                     String
+  createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                DateTime       @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdById              Int            @map("created_by_id")
+  dealershipId             Int?           @map("dealership_id")
+  claims                   Claim[]
+  vehicle                  Vehicle?
+  createdBy                User           @relation(fields: [createdById], references: [id])
+  dealership               Dealership?    @relation(fields: [dealershipId], references: [id])
+  customer                 Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "warranties_customer_id_customers_id_fk")
+  status                   WarrantyStatus @relation(fields: [statusId], references: [id], onUpdate: NoAction, map: "warranties_status_id_statuses_id_fk")
+
+  @@index([customerId])
+  @@index([statusId])
+  @@index([warrantyId])
+  @@index([dealershipId])
+}
+
+model WarrantyStatus {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique(map: "Warranty_status_name_unique")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdById Int        @map("created_by_id")
+  warranties  Warranty[]
+  createdBy   User       @relation(fields: [createdById], references: [id])
+
+  @@index([name])
+}
+
+model ClaimStatus {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique(map: "claim_status_name_unique")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdById Int      @map("created_by_id")
+  order       Int      @unique(map: "claim_status_order_unique")
+  claims      Claim[]
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  @@index([name])
+}
+
+model Vehicle {
+  id               Int       @id @default(autoincrement())
+  warrantyId       Int       @unique(map: "vehicles_warranty_id_unique") @map("warranty_id")
+  make             String
+  model            String
+  mileage          Int?
+  registration     String
+  registrationDate DateTime? @map("registration_date") @db.Date
+  price            Int?
+  createdById      Int       @map("created_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdBy        User      @relation(fields: [createdById], references: [id])
+  warranty         Warranty  @relation(fields: [warrantyId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vehicles_warranty_id_warranties_id_fk")
+
+  @@index([registration])
+  @@index([warrantyId])
+}
+
+model Claim {
+  id          Int          @id @default(autoincrement())
+  warrantyId  Int          @map("warranty_id")
+  repairerId  Int?         @map("repairer_id")
+  customerId  Int          @map("customer_id")
+  statusId    Int          @map("status_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdById Int          @map("created_by_id")
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  customer    Customer     @relation(fields: [customerId], references: [id], onUpdate: NoAction, map: "claims_customer_id_customers_id_fk")
+  repairer    Repairer?    @relation(fields: [repairerId], references: [id], onUpdate: NoAction, map: "claims_repairer_id_repairers_id_fk")
+  status      ClaimStatus  @relation(fields: [statusId], references: [id], onUpdate: NoAction, map: "claims_status_id_claim_statuses_id_fk")
+  warranty    Warranty     @relation(fields: [warrantyId], references: [id], onUpdate: NoAction, map: "claims_warranty_id_warranties_id_fk")
+  media       Media[]
+  parts       Part[]
+  repairCosts RepairCost[]
+
+  @@index([repairerId])
+  @@index([statusId])
+  @@index([warrantyId])
+}
+
+model Repairer {
+  id           Int     @id @default(autoincrement())
+  companyName  String
+  addressLine1 String
+  addressLine2 String?
+  town         String
+  postcode     String
+  telephone    String
+  contactName  String?
+  createdById  Int
+  claims       Claim[]
+  createdBy    User    @relation(fields: [createdById], references: [id])
+
+  @@index([companyName])
+}
+
+model RepairCost {
+  id             Int    @id @default(autoincrement())
+  claimId        Int
+  vehicleMileage Int
+  diagnosis      String
+  prognosis      String
+  labourRate     Int
+  labourTime     Int
+  createdById    Int
+  createdBy      User   @relation(fields: [createdById], references: [id])
+  claim          Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "repair_costs_claimId_claimsId_fk")
+
+  @@index([claimId])
+}
+
+model Part {
+  id          Int    @id @default(autoincrement())
+  claimId     Int
+  description String
+  quantity    Int
+  unitPrice   Int
+  labourRate  Int    @default(0)
+  labourTime  Int    @default(0)
+  createdById Int
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+  claim       Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "parts_claimId_claimsId_fk")
+
+  @@index([claimId])
+}
+
+model Dealership {
+  id           Int        @id @default(autoincrement())
+  name         String
+  addressLine1 String     @map("address_line1")
+  addressLine2 String?    @map("address_line2")
+  town         String
+  postcode     String
+  telephone    String
+  contactName  String?    @map("contact_name")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  createdById  Int?       @map("created_by_id")
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+  createdBy    User?      @relation(fields: [createdById], references: [id])
+  warranties   Warranty[]
+}
+
+model Media {
+  id          Int      @id @default(autoincrement())
+  claimId     Int
+  mimeType    String?
+  url         String?
+  description String?
+  createdById Int
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  claim       Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "media_claimId_claimsId_fk")
+
+  @@index([claimId])
+}
+
+model Note {
+  id           Int      @id @default(autoincrement())
+  content      String
+  resourceType String
+  resourceId   String
+  createdById  Int
+  createdAt    DateTime @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @db.Timestamp(6)
+  createdBy    User     @relation(fields: [createdById], references: [id], onUpdate: NoAction, map: "notes_created_byId_usersId_fk")
+
+  @@index([createdById])
+  @@index([resourceType, resourceId], map: "notes_resourceIdx")
+}
